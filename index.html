@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RPG Game</title>
+  <style>
+    canvas { border: 1px solid black; }
+    #leaderboard { margin-top: 20px; }
+  </style>
+</head>
+<body>
+  <h1>RPG Multiplayer Game</h1>
+  <canvas id="gameCanvas" width="600" height="400"></canvas>
+  <div id="leaderboard">Loading Leaderboard...</div>
+
+  <script src="https://www.gstatic.com/firebasejs/7.20.0/firebase-app.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/7.20.0/firebase-database.js"></script>
+
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyBFLQzHxVw5UV1481iRfruD9AEenf_M_lI",
+      authDomain: "realtime-sync-project.firebaseapp.com",
+      databaseURL: "https://realtime-sync-project-default-rtdb.firebaseio.com",
+      projectId: "realtime-sync-project",
+      storageBucket: "realtime-sync-project.appspot.com",
+      messagingSenderId: "1079348282119",
+      appId: "1:1079348282119:web:57d72c95e6212070fe7ba2",
+      measurementId: "G-XKVNBVD6RE"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const player = { x: 300, y: 200, speed: 2, xp: 0, username: '' };
+    const players = {};
+    const monsters = [];
+    const monsterCount = 5; // Number of monsters to spawn
+    let keys = {};
+
+    function setupGame() {
+      const username = prompt("Enter your unique username:");
+      database.ref(`users/${username}`).get().then(snapshot => {
+        if (snapshot.exists()) {
+          alert("Username already taken, try again.");
+          setupGame();
+        } else {
+          player.username = username;
+          database.ref(`users/${username}`).set({
+            x: player.x,
+            y: player.y,
+            xp: player.xp
+          });
+          spawnMonsters();
+          gameLoop();
+        }
+      });
+    }
+
+    function spawnMonsters() {
+      for (let i = 0; i < monsterCount; i++) {
+        const monster = {
+          x: Math.random() * canvas.width,
+          y: Math.random() * canvas.height,
+          size: 20
+        };
+        monsters.push(monster);
+      }
+    }
+
+    function updateLeaderboard() {
+      database.ref('users').orderByChild('xp').limitToLast(10).on('value', snapshot => {
+        const leaderboard = document.getElementById('leaderboard');
+        leaderboard.innerHTML = '<h2>Leaderboard</h2>';
+        const users = [];
+        snapshot.forEach(userSnapshot => {
+          const user = userSnapshot.val();
+          users.push(`${userSnapshot.key}: ${user.xp} XP`);
+        });
+        leaderboard.innerHTML += users.reverse().join('<br>');
+      });
+    }
+
+    function updatePlayer() {
+      database.ref(`users/${player.username}`).update({
+        x: player.x,
+        y: player.y,
+        xp: player.xp
+      });
+    }
+
+    function detectCollision(entity1, entity2) {
+      return entity1.x < entity2.x + entity2.size &&
+             entity1.x + 20 > entity2.x &&
+             entity1.y < entity2.y + entity2.size &&
+             entity1.y + 20 > entity2.y;
+    }
+
+    function gameLoop() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Draw player
+      ctx.fillStyle = 'blue';
+      ctx.fillRect(player.x, player.y, 20, 20);
+
+      // Move player
+      if (keys['ArrowUp']) player.y -= player.speed;
+      if (keys['ArrowDown']) player.y += player.speed;
+      if (keys['ArrowLeft']) player.x -= player.speed;
+      if (keys['ArrowRight']) player.x += player.speed;
+      updatePlayer();
+
+      // Draw and check for monsters
+      monsters.forEach((monster, index) => {
+        ctx.fillStyle = 'red';
+        ctx.fillRect(monster.x, monster.y, monster.size, monster.size);
+
+        // If player attacks (space key) and collides with the monster, destroy the monster and gain XP
+        if (keys[' '] && detectCollision(player, monster)) {
+          player.xp += 10; // Gain 10 XP
+          monsters.splice(index, 1); // Remove monster
+        }
+      });
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    window.addEventListener('keydown', e => { keys[e.key] = true; });
+    window.addEventListener('keyup', e => { delete keys[e.key]; });
+
+    setupGame();
+    updateLeaderboard();
+  </script>
+</body>
+</html>

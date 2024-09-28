@@ -44,7 +44,8 @@
 
     function setupGame() {
       const username = prompt("Enter your unique username:");
-      database.ref(`users/${username}`).get().then(snapshot => {
+      
+      database.ref(`users/${username}`).once('value').then(snapshot => {
         if (snapshot.exists()) {
           alert("Username already taken, try again.");
           setupGame();

@@ -66,7 +66,8 @@
           x: Math.random() * canvas.width,
           y: Math.random() * canvas.height,
           size: 20,
-          hp: 20
+          hp: 30,
+          speed: 1
         };
         monsters.push(monster);
       }
@@ -107,13 +108,12 @@
              entity1.y + 20 > entity2.y;
     }
 
-    function playerDeath() {
-      if (player.hp <= 0) {
-        player.xp = Math.max(0, player.xp - 5);  // Lose 5 XP but not go below 0
-        player.hp = 100;  // Reset HP
-        player.x = Math.random() * canvas.width;  // Respawn at a random location
-        player.y = Math.random() * canvas.height;
-      }
+    function drawHealthBar(entity, x, y, width, height, health, maxHealth) {
+      ctx.fillStyle = 'black';
+      ctx.fillRect(x - 1, y - 11, width + 2, height + 2);  // Border
+      const healthRatio = health / maxHealth;
+      ctx.fillStyle = 'green';
+      ctx.fillRect(x, y - 10, width * healthRatio, height);  // Health bar
     }
 
     function gameLoop() {
@@ -127,6 +127,7 @@
         ctx.fillStyle = 'blue';  // Default player color
       }
       ctx.fillRect(player.x, player.y, 20, 20);
+      drawHealthBar(player, player.x, player.y, 20, 5, player.hp, 100);  // Player health bar
 
       // Move player
       if (keys['ArrowUp']) player.y -= player.speed;
@@ -139,18 +140,27 @@
       monsters.forEach((monster, index) => {
         ctx.fillStyle = 'red';
         ctx.fillRect(monster.x, monster.y, monster.size, monster.size);
+        drawHealthBar(monster, monster.x, monster.y, monster.size, 5, monster.hp, 30);  // Monster health bar
+
+        // Monster AI: move toward the player
+        if (player.x > monster.x) monster.x += monster.speed;
+        if (player.x < monster.x) monster.x -= monster.speed;
+        if (player.y > monster.y) monster.y += monster.speed;
+        if (player.y < monster.y) monster.y -= monster.speed;
 
         // If player attacks (space key) and collides with the monster, destroy the monster and gain XP
         if (keys[' '] && detectCollision(player, monster)) {
           player.isAttacking = true;
-          player.xp += 10; // Gain 10 XP
-          monsters.splice(index, 1); // Remove monster
+          monster.hp -= 10;  // Reduce monster HP
+          if (monster.hp <= 0) {
+            player.xp += 10; // Gain 10 XP
+            monsters.splice(index, 1); // Remove monster
+          }
         }
 
         // Monster damages player on collision
         if (detectCollision(player, monster)) {
-          player.hp -= 10; // Take damage
-          playerDeath();  // Check if the player died
+          player.hp -= 1; // Take damage from monster
         }
       });
 

@@ -34,7 +34,7 @@
 
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
-    const player = { x: 300, y: 200, speed: 2, xp: 0, username: '' };
+    const player = { x: 300, y: 200, speed: 2, xp: 0, hp: 100, isAttacking: false, username: '' };
     const players = {};
     const monsters = [];
     const monsterCount = 5; // Number of monsters to spawn
@@ -51,7 +51,8 @@
           database.ref(`users/${username}`).set({
             x: player.x,
             y: player.y,
-            xp: player.xp
+            xp: player.xp,
+            hp: player.hp
           });
           spawnMonsters();
           gameLoop();
@@ -64,9 +65,16 @@
         const monster = {
           x: Math.random() * canvas.width,
           y: Math.random() * canvas.height,
-          size: 20
+          size: 20,
+          hp: 20
         };
         monsters.push(monster);
+      }
+    }
+
+    function respawnMonsters() {
+      if (monsters.length === 0) {
+        spawnMonsters();
       }
     }
 
@@ -87,7 +95,8 @@
       database.ref(`users/${player.username}`).update({
         x: player.x,
         y: player.y,
-        xp: player.xp
+        xp: player.xp,
+        hp: player.hp
       });
     }
 
@@ -98,11 +107,25 @@
              entity1.y + 20 > entity2.y;
     }
 
+    function playerDeath() {
+      if (player.hp <= 0) {
+        player.xp = Math.max(0, player.xp - 5);  // Lose 5 XP but not go below 0
+        player.hp = 100;  // Reset HP
+        player.x = Math.random() * canvas.width;  // Respawn at a random location
+        player.y = Math.random() * canvas.height;
+      }
+    }
+
     function gameLoop() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Draw player
-      ctx.fillStyle = 'blue';
+      // Draw player (animate color change for attack)
+      if (player.isAttacking) {
+        ctx.fillStyle = 'orange'; // Attack color
+        player.isAttacking = false;
+      } else {
+        ctx.fillStyle = 'blue';  // Default player color
+      }
       ctx.fillRect(player.x, player.y, 20, 20);
 
       // Move player
@@ -119,10 +142,20 @@
 
         // If player attacks (space key) and collides with the monster, destroy the monster and gain XP
         if (keys[' '] && detectCollision(player, monster)) {
+          player.isAttacking = true;
           player.xp += 10; // Gain 10 XP
           monsters.splice(index, 1); // Remove monster
         }
+
+        // Monster damages player on collision
+        if (detectCollision(player, monster)) {
+          player.hp -= 10; // Take damage
+          playerDeath();  // Check if the player died
+        }
       });
+
+      // Respawn new monsters when all are defeated
+      respawnMonsters();
 
       requestAnimationFrame(gameLoop);
     }

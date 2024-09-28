@@ -124,57 +124,129 @@
       ctx.fillRect(x, y - 10, width * healthRatio, height);  // Health bar
     }
 
-    // Main game loop
-    function gameLoop() {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+// Main game loop
+function gameLoop() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Draw player
-      if (player.isAttacking) {
-        ctx.fillStyle = 'orange'; // Attack color
-        player.isAttacking = false;
-      } else {
-        ctx.fillStyle = 'blue';  // Default player color
+  // Draw player
+  if (player.isAttacking) {
+    ctx.fillStyle = 'orange'; // Attack color
+    player.isAttacking = false;
+  } else {
+    ctx.fillStyle = 'blue';  // Default player color
+  }
+  ctx.fillRect(player.x, player.y, 20, 20);
+  drawHealthBar(player, player.x, player.y, 20, 5, player.hp, 100);  // Player health bar
+
+  // Move player
+  if (keys['ArrowUp']) player.y -= player.speed;
+  if (keys['ArrowDown']) player.y += player.speed;
+  if (keys['ArrowLeft']) player.x -= player.speed;
+  if (keys['ArrowRight']) player.x += player.speed;
+  updatePlayer();
+
+  // Draw and move monsters
+  monsters.forEach((monster, index) => {
+    ctx.fillStyle = 'red';
+    ctx.fillRect(monster.x, monster.y, monster.size, monster.size);
+    drawHealthBar(monster, monster.x, monster.y, monster.size, 5, monster.hp, 30);  // Monster health bar
+
+    // Monster AI: move toward player
+    if (player.x > monster.x) monster.x += monster.speed;
+    if (player.x < monster.x) monster.x -= monster.speed;
+    if (player.y > monster.y) monster.y += monster.speed;
+    if (player.y < monster.y) monster.y -= monster.speed;
+
+    // Player attacks monster
+    if (keys[' '] && detectCollision(player, monster)) {
+      player.isAttacking = true;
+      monster.hp -= 10;  // Reduce monster HP
+      if (monster.hp <= 0) {
+        player.xp += 10; // Gain XP
+        monsters.splice(index, 1); // Remove monster
       }
-      ctx.fillRect(player.x, player.y, 20, 20);
-      drawHealthBar(player, player.x, player.y, 20, 5, player.hp, 100);  // Player health bar
-
-      // Move player
-      if (keys['ArrowUp']) player.y -= player.speed;
-      if (keys['ArrowDown']) player.y += player.speed;
-      if (keys['ArrowLeft']) player.x -= player.speed;
-      if (keys['ArrowRight']) player.x += player.speed;
-      updatePlayer();
-
-      // Draw and move monsters
-      monsters.forEach((monster, index) => {
-        ctx.fillStyle = 'red';
-        ctx.fillRect(monster.x, monster.y, monster.size, monster.size);
-        drawHealthBar(monster, monster.x, monster.y, monster.size, 5, monster.hp, 30);  // Monster health bar
-
-        // Monster AI: move toward player
-        if (player.x > monster.x) monster.x += monster.speed;
-        if (player.x < monster.x) monster.x -= monster.speed;
-        if (player.y > monster.y) monster.y += monster.speed;
-        if (player.y < monster.y) monster.y -= monster.speed;
-
-        // Player attacks monster
-        if (keys[' '] && detectCollision(player, monster)) {
-          player.isAttacking = true;
-          monster.hp -= 10;  // Reduce monster HP
-          if (monster.hp <= 0) {
-            player.xp += 10; // Gain XP
-            monsters.splice(index, 1); // Remove monster
-          }
-        }
-      });
-
-      // Respawn monsters if all are defeated
-      if (monsters.length === 0) {
-        spawnMonsters();
-      }
-
-      requestAnimationFrame(gameLoop); // Keep the game loop running
     }
+
+    // Monster attacks player (collision detection)
+    if (detectCollision(player, monster)) {
+      player.hp -= 1; // Decrease player's health on collision with monster
+      if (player.hp <= 0) {
+        alert("Game Over! You died.");
+        player.hp = 0;  // Ensure player doesn't have negative HP
+        // You can reset the game here or respawn the player
+      }
+    }
+  });
+
+  // Respawn monsters if all are defeated
+  if (monsters.length === 0) {
+    spawnMonsters();
+  }
+
+  requestAnimationFrame(gameLoop); // Keep the game loop running
+}
+// Main game loop
+function gameLoop() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Draw player
+  if (player.isAttacking) {
+    ctx.fillStyle = 'orange'; // Attack color
+    player.isAttacking = false;
+  } else {
+    ctx.fillStyle = 'blue';  // Default player color
+  }
+  ctx.fillRect(player.x, player.y, 20, 20);
+  drawHealthBar(player, player.x, player.y, 20, 5, player.hp, 100);  // Player health bar
+
+  // Move player
+  if (keys['ArrowUp']) player.y -= player.speed;
+  if (keys['ArrowDown']) player.y += player.speed;
+  if (keys['ArrowLeft']) player.x -= player.speed;
+  if (keys['ArrowRight']) player.x += player.speed;
+  updatePlayer();
+
+  // Draw and move monsters
+  monsters.forEach((monster, index) => {
+    ctx.fillStyle = 'red';
+    ctx.fillRect(monster.x, monster.y, monster.size, monster.size);
+    drawHealthBar(monster, monster.x, monster.y, monster.size, 5, monster.hp, 30);  // Monster health bar
+
+    // Monster AI: move toward player
+    if (player.x > monster.x) monster.x += monster.speed;
+    if (player.x < monster.x) monster.x -= monster.speed;
+    if (player.y > monster.y) monster.y += monster.speed;
+    if (player.y < monster.y) monster.y -= monster.speed;
+
+    // Player attacks monster
+    if (keys[' '] && detectCollision(player, monster)) {
+      player.isAttacking = true;
+      monster.hp -= 10;  // Reduce monster HP
+      if (monster.hp <= 0) {
+        player.xp += 10; // Gain XP
+        monsters.splice(index, 1); // Remove monster
+      }
+    }
+
+    // Monster attacks player (collision detection)
+    if (detectCollision(player, monster)) {
+      player.hp -= 1; // Decrease player's health on collision with monster
+      if (player.hp <= 0) {
+        alert("Game Over! You died.");
+        player.hp = 0;  // Ensure player doesn't have negative HP
+        // You can reset the game here or respawn the player
+      }
+    }
+  });
+
+  // Respawn monsters if all are defeated
+  if (monsters.length === 0) {
+    spawnMonsters();
+  }
+
+  requestAnimationFrame(gameLoop); // Keep the game loop running
+}
+
 
     // Key press events
     window.addEventListener('keydown', e => { keys[e.key] = true; });

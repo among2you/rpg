@@ -18,6 +18,7 @@
   <script src="https://www.gstatic.com/firebasejs/7.20.0/firebase-database.js"></script>
 
   <script>
+    // Firebase configuration
     const firebaseConfig = {
       apiKey: "AIzaSyBFLQzHxVw5UV1481iRfruD9AEenf_M_lI",
       authDomain: "realtime-sync-project.firebaseapp.com",
@@ -29,14 +30,15 @@
       measurementId: "G-XKVNBVD6RE"
     };
 
+    // Initialize Firebase
     firebase.initializeApp(firebaseConfig);
     const database = firebase.database();
 
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
-    const player = { x: 300, y: 200, speed: 2, xp: 0, hp: 100, isAttacking: false, username: '' };
-    const players = {};
-    const monsters = [];
+    let player = { x: 300, y: 200, speed: 2, xp: 0, hp: 100, isAttacking: false, username: '' };
+    let players = {};
+    let monsters = [];
     const monsterCount = 5; // Number of monsters to spawn
     let keys = {};
 
@@ -54,13 +56,18 @@
             xp: player.xp,
             hp: player.hp
           });
-          spawnMonsters();
-          gameLoop();
+          spawnMonsters(); // Spawn monsters after username setup
+          gameLoop(); // Start the game loop
+          updateLeaderboard(); // Load leaderboard
         }
+      }).catch(error => {
+        console.error("Error reading Firebase:", error);
       });
     }
 
+    // Function to spawn monsters
     function spawnMonsters() {
+      monsters = []; // Clear existing monsters
       for (let i = 0; i < monsterCount; i++) {
         const monster = {
           x: Math.random() * canvas.width,
@@ -73,12 +80,7 @@
       }
     }
 
-    function respawnMonsters() {
-      if (monsters.length === 0) {
-        spawnMonsters();
-      }
-    }
-
+    // Update leaderboard from Firebase
     function updateLeaderboard() {
       database.ref('users').orderByChild('xp').limitToLast(10).on('value', snapshot => {
         const leaderboard = document.getElementById('leaderboard');
@@ -92,15 +94,19 @@
       });
     }
 
+    // Update player info in Firebase
     function updatePlayer() {
-      database.ref(`users/${player.username}`).update({
-        x: player.x,
-        y: player.y,
-        xp: player.xp,
-        hp: player.hp
-      });
+      if (player.username) {
+        database.ref(`users/${player.username}`).update({
+          x: player.x,
+          y: player.y,
+          xp: player.xp,
+          hp: player.hp
+        });
+      }
     }
 
+    // Detect collision between two entities
     function detectCollision(entity1, entity2) {
       return entity1.x < entity2.x + entity2.size &&
              entity1.x + 20 > entity2.x &&
@@ -108,6 +114,7 @@
              entity1.y + 20 > entity2.y;
     }
 
+    // Draw health bars for entities
     function drawHealthBar(entity, x, y, width, height, health, maxHealth) {
       ctx.fillStyle = 'black';
       ctx.fillRect(x - 1, y - 11, width + 2, height + 2);  // Border
@@ -116,10 +123,11 @@
       ctx.fillRect(x, y - 10, width * healthRatio, height);  // Health bar
     }
 
+    // Main game loop
     function gameLoop() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-      // Draw player (animate color change for attack)
+      // Draw player
       if (player.isAttacking) {
         ctx.fillStyle = 'orange'; // Attack color
         player.isAttacking = false;
@@ -136,45 +144,42 @@
       if (keys['ArrowRight']) player.x += player.speed;
       updatePlayer();
 
-      // Draw and check for monsters
+      // Draw and move monsters
       monsters.forEach((monster, index) => {
         ctx.fillStyle = 'red';
         ctx.fillRect(monster.x, monster.y, monster.size, monster.size);
         drawHealthBar(monster, monster.x, monster.y, monster.size, 5, monster.hp, 30);  // Monster health bar
 
-        // Monster AI: move toward the player
+        // Monster AI: move toward player
         if (player.x > monster.x) monster.x += monster.speed;
         if (player.x < monster.x) monster.x -= monster.speed;
         if (player.y > monster.y) monster.y += monster.speed;
         if (player.y < monster.y) monster.y -= monster.speed;
 
-        // If player attacks (space key) and collides with the monster, destroy the monster and gain XP
+        // Player attacks monster
         if (keys[' '] && detectCollision(player, monster)) {
           player.isAttacking = true;
           monster.hp -= 10;  // Reduce monster HP
           if (monster.hp <= 0) {
-            player.xp += 10; // Gain 10 XP
+            player.xp += 10; // Gain XP
             monsters.splice(index, 1); // Remove monster
           }
         }
-
-        // Monster damages player on collision
-        if (detectCollision(player, monster)) {
-          player.hp -= 1; // Take damage from monster
-        }
       });
 
-      // Respawn new monsters when all are defeated
-      respawnMonsters();
+      // Respawn monsters if all are defeated
+      if (monsters.length === 0) {
+        spawnMonsters();
+      }
 
-      requestAnimationFrame(gameLoop);
+      requestAnimationFrame(gameLoop); // Keep the game loop running
     }
 
+    // Key press events
     window.addEventListener('keydown', e => { keys[e.key] = true; });
     window.addEventListener('keyup', e => { delete keys[e.key]; });
 
-    setupGame();
-    updateLeaderboard();
+    setupGame(); // Initialize game
   </script>
 </body>
 </html>
